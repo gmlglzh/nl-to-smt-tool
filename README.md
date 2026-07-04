@@ -7,7 +7,7 @@ A web-based tool for translating natural language temporal policies into formal 
 - 🤖 **LLM-Assisted Translation**: Uses DeepSeek (or compatible) API to generate Blueprint and Encoder Plan JSON from natural language
 - ✏️ **Editable Results**: Generated JSON can be manually edited and validated
 - ✅ **Real-time Validation**: Build Z3 solver and check constraint satisfiability
-- 🧪 **Scenario Testing**: Test specific execution traces against the policy
+- 🧪 **Visual Scenario Testing**: Test execution traces using an easy-to-use visual builder (no JSON writing required)
 - 📚 **Template Reference**: Built-in documentation for all constraint templates
 - 🎯 **Example Policies**: Load pre-built examples to get started quickly
 
@@ -90,19 +90,22 @@ Click **Validate JSON** to:
 
 ### 5. Test Scenarios (Optional)
 
-Click **Test Scenario** to test specific execution traces:
+Click **Quick Test** to test specific execution scenarios using the visual builder:
 
-```json
-{
-  "prefix_length": 2,
-  "events": [
-    {"time": 0, "event": "drug_interaction_detected"},
-    {"time": 1, "event": "prescription_finalized"}
-  ],
-  "states": [],
-  "check": {"require_eventually": "physician_override_issued"}
-}
-```
+Set **Prefix Length** (observed time steps)
+Click **+ Add Event** to add events that happened:
+- Choose time (0, 1, 2...)
+- Select event from dropdown
+Click **+ Add State** to add observed states:
+- Choose time
+- Select state from dropdown
+- Choose true/false
+Select **Require Eventually** (target event that must happen)
+Click **Run Test**
+
+The system will check if the scenario can be completed while satisfying all constraints:
+**SAT** = Scenario is feasible
+**UNSAT** = Scenario violates the policy
 
 ### 6. Download
 
