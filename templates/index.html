@@ -238,9 +238,44 @@
 
             <button onclick="validateJSON()">Validate JSON</button>
             <button onclick="downloadJSON()" class="secondary">Download JSON</button>
-            <button onclick="testScenario()" class="secondary">Test Scenario</button>
+            <button onclick="showScenarioBuilder()" class="secondary">Quick Test</button>
 
             <div id="validation_result"></div>
+        </div>
+
+        <!-- Scenario Builder Section -->
+        <div id="scenario_builder" class="section hidden">
+            <h2>🧪 Quick Scenario Test</h2>
+            <p style="color: #666; margin-bottom: 15px;">Build a test scenario without writing JSON</p>
+
+            <div class="input-group">
+                <label>Prefix Length (observed time steps)</label>
+                <input type="number" id="scenario_prefix_length" value="2" min="1" max="10" style="width: 100px;">
+            </div>
+
+            <div class="input-group">
+                <label>Events (what happened)</label>
+                <div id="scenario_events_list"></div>
+                <button onclick="addScenarioEvent()" style="margin-top: 10px;">+ Add Event</button>
+            </div>
+
+            <div class="input-group">
+                <label>States (observed states)</label>
+                <div id="scenario_states_list"></div>
+                <button onclick="addScenarioState()" style="margin-top: 10px;">+ Add State</button>
+            </div>
+
+            <div class="input-group">
+                <label>Require Eventually (this event must happen in the future)</label>
+                <select id="scenario_target_event" style="width: 300px; padding: 8px;">
+                    <option value="">-- Select target event --</option>
+                </select>
+            </div>
+
+            <button onclick="runQuickTest()">Run Test</button>
+            <button onclick="hideScenarioBuilder()" class="secondary">Cancel</button>
+
+            <div id="scenario_result"></div>
         </div>
 
         <!-- Template Help -->
@@ -453,6 +488,167 @@
             const resultDiv = document.getElementById('validation_result');
             resultDiv.innerHTML = message;
             resultDiv.className = 'result-box ' + type;
+        }
+
+        // Scenario Builder Functions
+        let scenarioEventsCount = 0;
+        let scenarioStatesCount = 0;
+
+        function showScenarioBuilder() {
+            try {
+                const blueprint = JSON.parse(document.getElementById('blueprint').value);
+
+                // Populate event options
+                const targetSelect = document.getElementById('scenario_target_event');
+                targetSelect.innerHTML = '<option value="">-- Select target event --</option>';
+                blueprint.events.forEach(event => {
+                    const option = document.createElement('option');
+                    option.value = event;
+                    option.textContent = event;
+                    targetSelect.appendChild(option);
+                });
+
+                // Clear previous scenario
+                document.getElementById('scenario_events_list').innerHTML = '';
+                document.getElementById('scenario_states_list').innerHTML = '';
+                scenarioEventsCount = 0;
+                scenarioStatesCount = 0;
+
+                // Show builder
+                document.getElementById('scenario_builder').classList.remove('hidden');
+            } catch (error) {
+                alert('Please generate and validate JSON first');
+            }
+        }
+
+        function hideScenarioBuilder() {
+            document.getElementById('scenario_builder').classList.add('hidden');
+        }
+
+        function addScenarioEvent() {
+            try {
+                const blueprint = JSON.parse(document.getElementById('blueprint').value);
+                const container = document.getElementById('scenario_events_list');
+
+                const eventDiv = document.createElement('div');
+                eventDiv.style.cssText = 'display: flex; gap: 10px; margin-bottom: 10px; align-items: center;';
+                eventDiv.innerHTML = `
+                    <label style="width: 80px;">Time:</label>
+                    <input type="number" class="scenario-event-time" value="${scenarioEventsCount}" min="0" style="width: 80px; padding: 5px;">
+                    <label style="width: 80px;">Event:</label>
+                    <select class="scenario-event-name" style="flex: 1; padding: 5px;">
+                        ${blueprint.events.map(e => `<option value="${e}">${e}</option>`).join('')}
+                    </select>
+                    <button onclick="this.parentElement.remove()" style="padding: 5px 10px;">Remove</button>
+                `;
+                container.appendChild(eventDiv);
+                scenarioEventsCount++;
+            } catch (error) {
+                alert('Cannot parse blueprint JSON');
+            }
+        }
+
+        function addScenarioState() {
+            try {
+                const blueprint = JSON.parse(document.getElementById('blueprint').value);
+                const container = document.getElementById('scenario_states_list');
+
+                const stateDiv = document.createElement('div');
+                stateDiv.style.cssText = 'display: flex; gap: 10px; margin-bottom: 10px; align-items: center;';
+                stateDiv.innerHTML = `
+                    <label style="width: 80px;">Time:</label>
+                    <input type="number" class="scenario-state-time" value="${scenarioStatesCount}" min="0" style="width: 80px; padding: 5px;">
+                    <label style="width: 80px;">State:</label>
+                    <select class="scenario-state-name" style="flex: 1; padding: 5px;">
+                        ${blueprint.states.map(s => `<option value="${s}">${s}</option>`).join('')}
+                    </select>
+                    <label style="width: 80px;">Value:</label>
+                    <select class="scenario-state-value" style="width: 100px; padding: 5px;">
+                        <option value="true">true</option>
+                        <option value="false">false</option>
+                    </select>
+                    <button onclick="this.parentElement.remove()" style="padding: 5px 10px;">Remove</button>
+                `;
+                container.appendChild(stateDiv);
+                scenarioStatesCount++;
+            } catch (error) {
+                alert('Cannot parse blueprint JSON');
+            }
+        }
+
+        function runQuickTest() {
+            try {
+                const blueprint = JSON.parse(document.getElementById('blueprint').value);
+                const encoder_plan = JSON.parse(document.getElementById('encoder_plan').value);
+
+                // Build trace_prefix from UI
+                const prefix_length = parseInt(document.getElementById('scenario_prefix_length').value);
+
+                const events = [];
+                document.querySelectorAll('#scenario_events_list > div').forEach(div => {
+                    const time = parseInt(div.querySelector('.scenario-event-time').value);
+                    const event = div.querySelector('.scenario-event-name').value;
+                    events.push({time, event});
+                });
+
+                const states = [];
+                document.querySelectorAll('#scenario_states_list > div').forEach(div => {
+                    const time = parseInt(div.querySelector('.scenario-state-time').value);
+                    const state = div.querySelector('.scenario-state-name').value;
+                    const value = div.querySelector('.scenario-state-value').value === 'true';
+                    states.push({time, state, value});
+                });
+
+                const target_event = document.getElementById('scenario_target_event').value;
+                if (!target_event) {
+                    alert('Please select a target event');
+                    return;
+                }
+
+                const trace_prefix = {
+                    prefix_length,
+                    events,
+                    states,
+                    check: {require_eventually: target_event}
+                };
+
+                // Show what we're testing
+                const scenarioResultDiv = document.getElementById('scenario_result');
+                scenarioResultDiv.innerHTML = '<p style="color: #666;">Testing scenario...</p>';
+
+                fetch('/test_scenario', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({blueprint, encoder_plan, trace_prefix})
+                })
+                .then(resp => resp.json())
+                .then(data => {
+                    if (data.success) {
+                        let resultHtml = `<div class="result-box ${data.result === 'unsat' ? 'error' : 'success'}">`;
+                        resultHtml += `<strong>Test Result: ${data.result.toUpperCase()}</strong><br><br>`;
+                        resultHtml += data.explanation.replace(/\n/g, '<br>');
+
+                        if (data.unsat_core && data.unsat_core.length > 0) {
+                            resultHtml += '<br><br><strong>UNSAT Core (first 10):</strong><br>';
+                            resultHtml += '<pre style="font-size: 11px; max-height: 200px; overflow-y: auto;">';
+                            resultHtml += data.unsat_core.slice(0, 10).join('\n');
+                            if (data.unsat_core.length > 10) {
+                                resultHtml += `\n... and ${data.unsat_core.length - 10} more`;
+                            }
+                            resultHtml += '</pre>';
+                        }
+                        resultHtml += '</div>';
+
+                        scenarioResultDiv.innerHTML = resultHtml;
+                    } else {
+                        scenarioResultDiv.innerHTML = `<div class="result-box error">Test Error: ${data.error}</div>`;
+                    }
+                });
+
+            } catch (error) {
+                document.getElementById('scenario_result').innerHTML =
+                    `<div class="result-box error">Error: ${error.message}</div>`;
+            }
         }
     </script>
 </body>
