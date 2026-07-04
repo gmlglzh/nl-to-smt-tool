@@ -1,0 +1,81 @@
+{
+  "name": "Email Runtime Safety",
+  "nl_policy": "Enterprise email Agent with temporal safety constraints:\n\n1. Before sending email, the system must verify the recipient, check permissions, and hash the content.\n\n2. Sending email requires either:\n   - Executive approval, OR\n   - Both encrypted channel AND signed NDA\n\n3. Executive approval can only happen when project matches.\n\n4. If project does not match, manager override is required.\n\n5. Manager override activates emergency path.\n\n6. Emergency path blocks encrypted channel setup.",
+  "blueprint": {
+    "name": "email_runtime_safety",
+    "description": "Enterprise email Agent with temporal safety constraints",
+    "time_bound": 10,
+    "events": [
+      "sensitive_doc_detected",
+      "external_recipient_confirmed",
+      "recipient_verified",
+      "permission_check_success",
+      "content_hash_bound",
+      "valid_exec_approval",
+      "encrypted_channel_ready",
+      "NDA_signed",
+      "send_email"
+    ],
+    "states": [
+      "project_match",
+      "manager_override",
+      "emergency_path"
+    ]
+  },
+  "encoder_plan": {
+    "name": "email_runtime_safety_encoder_plan",
+    "temporal_constraints": [
+      {
+        "name": "main_send_precondition",
+        "kind": "always_previously_requires",
+        "trigger": "send_email",
+        "all_before": [
+          "recipient_verified",
+          "permission_check_success",
+          "content_hash_bound"
+        ],
+        "one_of_before": [
+          ["valid_exec_approval"],
+          ["encrypted_channel_ready", "NDA_signed"]
+        ],
+        "description": "Main temporal constraint: sending email requires all basic checks plus either executive approval OR (encrypted channel + NDA)"
+      }
+    ],
+    "business_constraints": [
+      {
+        "name": "approval_requires_project_match",
+        "kind": "event_requires_state",
+        "event": "valid_exec_approval",
+        "state": "project_match",
+        "value": true,
+        "description": "Executive approval can only happen when project_match is true"
+      },
+      {
+        "name": "project_mismatch_requires_override",
+        "kind": "state_implication",
+        "if_state": "project_match",
+        "if_value": false,
+        "then_state": "manager_override",
+        "then_value": true,
+        "description": "If project does not match, manager override is required"
+      },
+      {
+        "name": "override_implies_emergency",
+        "kind": "state_implication",
+        "if_state": "manager_override",
+        "if_value": true,
+        "then_state": "emergency_path",
+        "then_value": true,
+        "description": "Manager override activates emergency path"
+      },
+      {
+        "name": "emergency_disables_encryption",
+        "kind": "state_blocks_event",
+        "state": "emergency_path",
+        "value": true,
+        "event": "encrypted_channel_ready",
+        "description": "Emergency path blocks encrypted channel setup"
+      }
+    ]
+  }
+}

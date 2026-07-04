@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NL to SMT Policy Translator</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section h2 {
+            color: #444;
+            font-size: 18px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 5px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input[type="text"], input[type="password"], textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        textarea {
+            font-family: 'Courier New', monospace;
+            resize: vertical;
+            min-height: 150px;
+        }
+
+        .json-editor {
+            min-height: 300px;
+            background: #f9f9f9;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            margin-right: 10px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        button.secondary {
+            background: #2196F3;
+        }
+
+        button.secondary:hover {
+            background: #0b7dda;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .result-box {
+            background: #f0f7ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 4px;
+        }
+
+        .result-box.success {
+            background: #f0fff4;
+            border-left-color: #4CAF50;
+        }
+
+        .result-box.error {
+            background: #fff0f0;
+            border-left-color: #f44336;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-left: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .template-help {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .template-help h4 {
+            color: #333;
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+
+        .template-help code {
+            background: #fff;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 NL to SMT Policy Translator</h1>
+        <p class="subtitle">Translate natural language temporal policies into formal SMT constraints using LLM assistance</p>
+
+        <!-- Configuration Section -->
+        <div class="section">
+            <h2>1️⃣ LLM Configuration</h2>
+            <div class="input-group">
+                <label for="base_url">Base URL</label>
+                <input type="text" id="base_url" placeholder="https://api.deepseek.com" value="https://api.deepseek.com">
+            </div>
+            <div class="input-group">
+                <label for="api_key">API Key</label>
+                <input type="password" id="api_key" placeholder="sk-...">
+            </div>
+        </div>
+
+        <!-- Input Section -->
+        <div class="section">
+            <h2>2️⃣ Natural Language Policy</h2>
+            <div class="input-group">
+                <label for="nl_policy">Enter your temporal policy in natural language:</label>
+                <textarea id="nl_policy" placeholder="Example:
+1. Before sending email, the system must verify recipient and check permissions.
+2. If security alert is detected, the system enters safe mode.
+3. In safe mode, automated actions are blocked.
+..."></textarea>
+            </div>
+            <button onclick="generateJSON()" id="generate_btn">
+                Generate JSON
+            </button>
+            <button onclick="loadExample()" class="secondary">Load Example</button>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results_section" class="section hidden">
+            <h2>3️⃣ Generated JSON (Editable)</h2>
+            <div class="two-column">
+                <div>
+                    <div class="input-group">
+                        <label for="blueprint">Blueprint JSON</label>
+                        <textarea id="blueprint" class="json-editor" placeholder="Generated blueprint will appear here..."></textarea>
+                    </div>
+                </div>
+                <div>
+                    <div class="input-group">
+                        <label for="encoder_plan">Encoder Plan JSON</label>
+                        <textarea id="encoder_plan" class="json-editor" placeholder="Generated encoder plan will appear here..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="validateJSON()">Validate JSON</button>
+            <button onclick="downloadJSON()" class="secondary">Download JSON</button>
+            <button onclick="testScenario()" class="secondary">Test Scenario</button>
+
+            <div id="validation_result"></div>
+        </div>
+
+        <!-- Template Help -->
+        <div class="section">
+            <h2>📚 Template Reference</h2>
+            <div class="template-help">
+                <p><strong>Available constraint templates:</strong></p>
+
+                <h4>1. always_previously_requires</h4>
+                <p>Semantics: Event A must occur before event B</p>
+                <code>trigger requires all_before + one_of_before groups</code>
+
+                <h4>2. state_persistence_until</h4>
+                <p>Semantics: State persists from start_event until end_event</p>
+                <code>start_event → state persists → end_event</code>
+
+                <h4>3. always_prevents_while_state</h4>
+                <p>Semantics: State blocks event from occurring</p>
+                <code>state → NOT(event)</code>
+
+                <h4>4. always_within_requires</h4>
+                <p>Semantics: Trigger requires required event within N steps</p>
+                <code>trigger → required within time window</code>
+
+                <h4>5. always_next_requires</h4>
+                <p>Semantics: Event triggers state in next step</p>
+                <code>event[t] → state[t+1]</code>
+
+                <h4>6. event_requires_state</h4>
+                <p>Semantics: Event can only occur when state is true/false</p>
+                <code>event → state == value</code>
+
+                <h4>7. state_implication</h4>
+                <p>Semantics: One state implies another state</p>
+                <code>if_state == if_value → then_state == then_value</code>
+
+                <h4>8. state_blocks_event</h4>
+                <p>Semantics: State blocks event</p>
+                <code>state == value → NOT(event)</code>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let generatedData = null;
+
+        async function generateJSON() {
+            const nl_policy = document.getElementById('nl_policy').value.trim();
+            const api_key = document.getElementById('api_key').value.trim();
+            const base_url = document.getElementById('base_url').value.trim();
+
+            if (!nl_policy) {
+                alert('Please enter a natural language policy');
+                return;
+            }
+
+            if (!api_key) {
+                alert('Please enter your API key');
+                return;
+            }
+
+            const btn = document.getElementById('generate_btn');
+            btn.disabled = true;
+            btn.innerHTML = 'Generating<span class="loading"></span>';
+
+            try {
+                const resp = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({nl_policy, api_key, base_url})
+                });
+
+                const data = await resp.json();
+
+                if (data.success) {
+                    generatedData = data;
+                    document.getElementById('blueprint').value = JSON.stringify(data.blueprint, null, 2);
+                    document.getElementById('encoder_plan').value = JSON.stringify(data.encoder_plan, null, 2);
+                    document.getElementById('results_section').classList.remove('hidden');
+
+                    showResult('Generation successful! You can now edit the JSON if needed.', 'success');
+                } else {
+                    showResult('Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showResult('Error: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Generate JSON';
+            }
+        }
+
+        async function validateJSON() {
+            try {
+                const blueprint = JSON.parse(document.getElementById('blueprint').value);
+                const encoder_plan = JSON.parse(document.getElementById('encoder_plan').value);
+
+                const resp = await fetch('/validate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({blueprint, encoder_plan})
+                });
+
+                const data = await resp.json();
+
+                if (data.success) {
+                    showResult(
+                        `✓ JSON is valid!<br>` +
+                        `SMT Result: <strong>${data.result}</strong><br>` +
+                        `Total Constraints: ${data.num_constraints}`,
+                        'success'
+                    );
+                } else {
+                    showResult('Validation Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showResult('Parse Error: ' + error.message + '<br>Please check your JSON syntax.', 'error');
+            }
+        }
+
+        function downloadJSON() {
+            const blueprint = document.getElementById('blueprint').value;
+            const encoder_plan = document.getElementById('encoder_plan').value;
+
+            const content = `# Generated Policy JSON\n\n` +
+                          `## Blueprint\n\n${blueprint}\n\n` +
+                          `## Encoder Plan\n\n${encoder_plan}`;
+
+            const blob = new Blob([content], {type: 'text/plain'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'policy_' + Date.now() + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function testScenario() {
+            const scenario = prompt(
+                'Enter a test scenario (JSON format):\n\n' +
+                'Example:\n' +
+                '{\n' +
+                '  "prefix_length": 2,\n' +
+                '  "events": [{"time": 0, "event": "event_name"}],\n' +
+                '  "states": [],\n' +
+                '  "check": {"require_eventually": "target_event"}\n' +
+                '}'
+            );
+
+            if (!scenario) return;
+
+            try {
+                const trace_prefix = JSON.parse(scenario);
+                const blueprint = JSON.parse(document.getElementById('blueprint').value);
+                const encoder_plan = JSON.parse(document.getElementById('encoder_plan').value);
+
+                fetch('/test_scenario', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({blueprint, encoder_plan, trace_prefix})
+                })
+                .then(resp => resp.json())
+                .then(data => {
+                    if (data.success) {
+                        let resultHtml = `<strong>Test Result: ${data.result}</strong><br><br>`;
+                        resultHtml += data.explanation.replace(/\n/g, '<br>');
+
+                        if (data.unsat_core && data.unsat_core.length > 0) {
+                            resultHtml += '<br><br><strong>UNSAT Core:</strong><br>';
+                            resultHtml += data.unsat_core.slice(0, 10).join('<br>');
+                            if (data.unsat_core.length > 10) {
+                                resultHtml += `<br>... and ${data.unsat_core.length - 10} more`;
+                            }
+                        }
+
+                        showResult(resultHtml, data.result === 'unsat' ? 'error' : 'success');
+                    } else {
+                        showResult('Test Error: ' + data.error, 'error');
+                    }
+                });
+            } catch (error) {
+                showResult('Parse Error: ' + error.message, 'error');
+            }
+        }
+
+        function loadExample() {
+            const example = `Medical prescription system policy:
+
+1. Before prescribing medication, the doctor must verify patient allergies and check insurance coverage.
+
+2. High-risk medications require both supervisor approval AND pharmacy verification.
+
+3. If a drug interaction is detected, the system enters alert mode.
+
+4. In alert mode, the prescription cannot be finalized until either:
+   - A physician override is issued, OR
+   - The medication is changed to resolve the interaction
+
+5. Alert mode persists until the interaction is resolved.
+
+6. When a physician override is issued, emergency protocol must be activated in the next step.
+
+7. Emergency protocol blocks automated refills.`;
+
+            document.getElementById('nl_policy').value = example;
+            showResult('Example loaded! Click "Generate JSON" to translate it.', 'success');
+        }
+
+        function showResult(message, type = 'info') {
+            const resultDiv = document.getElementById('validation_result');
+            resultDiv.innerHTML = message;
+            resultDiv.className = 'result-box ' + type;
+        }
+    </script>
+</body>
+</html>
