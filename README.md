@@ -192,21 +192,6 @@ Example policies are included in the `examples/` directory:
 
 Load them via the **Load Example** button in the UI.
 
-## Contributing
-
-This is a research/educational tool. Contributions welcome!
-
-## License
-
-MIT License
-
-## Citation
-
-If you use this tool in research, please cite:
-```
-[Your citation information]
-```
-
 ## Contact
 
 For questions or issues, please open a GitHub issue.
